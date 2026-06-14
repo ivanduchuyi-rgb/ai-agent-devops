@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0b0e14;
+  --card: #141a23;
+  --border: #2a3344;
+  --text: #c0d0e0;
+  --muted: #8899aa;
+  --accent: #00d2ff;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.card {
+  @apply bg-[#141a23] border border-[#2a3344] rounded-xl p-4;
+}
+
+.stat-card {
+  @apply card flex flex-col gap-1;
+}

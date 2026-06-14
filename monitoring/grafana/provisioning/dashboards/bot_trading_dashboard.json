@@ -1,0 +1,504 @@
+{
+  "title": "Trading Bot v4.0 - Performance",
+  "uid": "trading-bot-dashboard",
+  "version": 1,
+  "schemaVersion": 39,
+  "timezone": "utc",
+  "tags": [
+    "trading",
+    "bot"
+  ],
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "symbol",
+        "type": "custom",
+        "label": "Symbol",
+        "query": "all,BTCUSD,GOLD",
+        "current": {
+          "text": "All",
+          "value": "all"
+        },
+        "includeAll": false,
+        "multi": false,
+        "allValue": "all"
+      },
+      {
+        "name": "time_range",
+        "type": "interval",
+        "label": "Time Range",
+        "query": "24h,7d,30d,all",
+        "current": {
+          "text": "7d",
+          "value": "7d"
+        },
+        "auto": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 0,
+      "title": "Navigation",
+      "type": "text",
+      "gridPos": {
+        "h": 3,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "transparent": true,
+      "options": {
+        "mode": "markdown",
+        "content": "### \ud83e\udd16 Trading Bot v4.0\n\n[\u2b06 Upload screenshot](http://79.108.225.114:3000/upload?key=NUOCh2o%23mC2%23) | [\ud83d\udcca Prometheus](http://79.108.225.114:9090) | [\ud83d\udcc8 Bot Dashboard](#)"
+      }
+    },
+    {
+      "id": 1,
+      "title": "Total Trades",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgresql"
+          },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS count FROM trades WHERE ($symbol = 'all' OR symbol = $symbol) AND $__timeFilter(time)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Win Rate",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgresql"
+          },
+          "format": "table",
+          "rawSql": "SELECT ROUND(COALESCE(COUNT(*) FILTER (WHERE profit > 0) * 100.0 / NULLIF(COUNT(*), 0), 0), 1) AS win_rate FROM trades WHERE ($symbol = 'all' OR symbol = $symbol) AND $__timeFilter(time)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 40
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "green",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Total P&L",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgresql"
+          },
+          "format": "table",
+          "rawSql": "SELECT ROUND(COALESCE(SUM(COALESCE(profit, 0)), 0), 2) AS total_pl FROM trades WHERE ($symbol = 'all' OR symbol = $symbol) AND $__timeFilter(time)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Trade Count by Symbol",
+      "type": "piechart",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgresql"
+          },
+          "format": "table",
+          "rawSql": "SELECT symbol, COUNT(*) AS count FROM trades WHERE ($symbol = 'all' OR symbol = $symbol) AND $__timeFilter(time) GROUP BY symbol",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "pieType": "pie",
+        "displayLabels": [
+          "name",
+          "value",
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Win Rate by Symbol",
+      "type": "barchart",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgresql"
+          },
+          "format": "table",
+          "rawSql": "SELECT symbol, ROUND(COALESCE(COUNT(*) FILTER (WHERE profit > 0) * 100.0 / NULLIF(COUNT(*), 0), 0), 1) AS win_rate, COUNT(*) AS total FROM trades WHERE ($symbol = 'all' OR symbol = $symbol) AND $__timeFilter(time) GROUP BY symbol",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "orientation": "auto",
+        "groupWidth": 0.7,
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Profit Over Time",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgresql"
+          },
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroup(time, '1h'), COALESCE(SUM(profit), 0) AS profit FROM trades WHERE ($symbol = 'all' OR symbol = $symbol) AND $__timeFilter(time) GROUP BY 1 ORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "sum",
+            "mean"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "spanNulls": false
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Score Distribution",
+      "type": "barchart",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 20
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgresql"
+          },
+          "format": "table",
+          "rawSql": "SELECT (score / 10 * 10) AS score_bucket, COUNT(*) AS count FROM trades WHERE ($symbol = 'all' OR symbol = $symbol) AND $__timeFilter(time) GROUP BY 1 ORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "orientation": "auto",
+        "groupWidth": 0.7,
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "P&L by Hour of Day",
+      "type": "barchart",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 20
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgresql"
+          },
+          "format": "table",
+          "rawSql": "SELECT EXTRACT(HOUR FROM time) AS hour, ROUND(COALESCE(SUM(profit), 0), 2) AS profit FROM trades WHERE ($symbol = 'all' OR symbol = $symbol) AND $__timeFilter(time) GROUP BY 1 ORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "orientation": "auto",
+        "groupWidth": 0.7,
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Recent Trades",
+      "type": "table",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgresql"
+          },
+          "format": "table",
+          "rawSql": "SELECT time, symbol, type, lot, open_price, close_price, profit, score, comment FROM trades WHERE ($symbol = 'all' OR symbol = $symbol) AND $__timeFilter(time) ORDER BY time DESC LIMIT 50",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "time",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "profit"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  }
+}

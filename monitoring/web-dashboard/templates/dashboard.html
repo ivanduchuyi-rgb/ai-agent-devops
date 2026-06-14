@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block title %}Dashboard - Trading Bot v4.0{% endblock %}
+{% block head %}
+<style>
+.sys-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding: 12px 16px; background: #141a23; border-radius: 10px; border: 1px solid #2a3344; align-items: center; font-size: 12px; }
+.sys-item { display: flex; align-items: center; gap: 6px; }
+.sys-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.sys-dot.green { background: #22c55e; }
+.sys-dot.yellow { background: #f59e0b; }
+.sys-dot.red { background: #ef4444; }
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.stat-card { background: #141a23; border-radius: 10px; padding: 16px; border: 1px solid #2a3344; text-align: center; }
+.stat-card .stat-label { font-size: 11px; text-transform: uppercase; color: #8899aa; letter-spacing: 0.5px; }
+.stat-card .stat-value { font-size: 26px; font-weight: 700; margin: 4px 0; }
+.stat-card .stat-sub { font-size: 12px; color: #667; }
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.chart-card { background: #141a23; border-radius: 10px; padding: 14px; border: 1px solid #2a3344; }
+.chart-card .chart-title { font-size: 13px; font-weight: 500; color: #c0d0e0; margin-bottom: 10px; }
+.chart-card.full { grid-column: 1 / -1; }
+.chart-wrap { position: relative; }
+.chart-wrap:not(.pie) { min-height: 200px; }
+.chart-wrap.pie { max-height: 220px; }
+.table-card { background: #141a23; border-radius: 10px; padding: 14px; border: 1px solid #2a3344; margin-bottom: 12px; }
+.table-card .table-title { font-size: 13px; font-weight: 500; color: #c0d0e0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.filter-bar { display: flex; gap: 8px; align-items: center; }
+.filter-bar select { background: #1a2233; color: #c0d0e0; border: 1px solid #2a3344; border-radius: 6px; padding: 4px 8px; font-size: 12px; outline: none; }
+.filter-bar a { color: #00d2ff; font-size: 12px; text-decoration: none; }
+.trades-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.trades-table th { text-align: left; padding: 6px 8px; border-bottom: 1px solid #2a3344; color: #8899aa; font-weight: 500; font-size: 10px; text-transform: uppercase; }
+.trades-table td { padding: 6px 8px; border-bottom: 1px solid #1d2533; }
+.trades-table tr:hover td { background: #1a2233; }
+.profit-pos { color: #22c55e; font-weight: 600; }
+.profit-neg { color: #ef4444; font-weight: 600; }
+.badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+.badge-buy { background: #1a3a2a; color: #22c55e; }
+.badge-sell { background: #3a1a1a; color: #ef4444; }
+.last-updated { text-align: right; color: #556; font-size: 11px; margin-top: 8px; }
+@media (max-width: 768px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .charts-row { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="sys-bar" id="sysBar"><span class="loading">Loading system...</span></div>
+
+<div class="stats-row" id="statsRow">
+  <div class="stat-card"><div class="stat-label">Total Trades</div><div class="stat-value" id="sTrades">—</div><div class="stat-sub" id="sTradesSub"></div></div>
+  <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="sWinRate">—</div><div class="stat-sub" id="sWinRateSub"></div></div>
+  <div class="stat-card"><div class="stat-label">Total P&amp;L</div><div class="stat-value" id="sPL">—</div><div class="stat-sub" id="sPLSub"></div></div>
+  <div class="stat-card"><div class="stat-label">Bot Status</div><div class="stat-value" id="sBotStatus" style="font-size:20px">—</div><div class="stat-sub" id="sBotSub"></div></div>
+</div>
+
+<div class="charts-row">
+  <div class="chart-card full"><div class="chart-title">Cumulative Profit</div><div class="chart-wrap"><canvas id="chartCumProfit"></canvas></div></div>
+</div>
+
+<div class="charts-row">
+  <div class="chart-card"><div class="chart-title">Trades by Symbol</div><div class="chart-wrap pie"><canvas id="chartSymbolPie"></canvas></div></div>
+  <div class="chart-card"><div class="chart-title">Win Rate by Symbol</div><div class="chart-wrap"><canvas id="chartWinRate"></canvas></div></div>
+</div>
+
+<div class="table-card">
+  <div class="table-title">
+    <span>Recent Trades</span>
+    <div class="filter-bar">
+      <select id="symbolFilter" onchange="loadTrades()">
+        <option value="">All Symbols</option>
+        <option value="BTCUSD">BTCUSD</option>
+        <option value="GOLD">GOLD</option>
+      </select>
+      <a href="/api/csv">&#x1f4e5; CSV</a>
+    </div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="trades-table"><thead><tr>
+      <th>Time</th><th>Symbol</th><th>Type</th><th>PnL</th><th>Score</th><th>Comment</th>
+    </tr></thead><tbody id="tradesBody"></tbody></table>
+  </div>
+</div>
+
+<div class="last-updated" id="lastUpdated"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+let charts = {};
+function $(id) {return document.getElementById(id);}
+
+function newChart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = $(id).getContext('2d');
+  charts[id] = new Chart(ctx, config);
+}
+
+async function loadSysBar() {
+  try {
+    const [sys, svc] = await Promise.all([fetchJSON('/api/system'), fetchJSON('/api/services')]);
+    const cpu = sys.cpu != null ? `<span class="sys-dot ${sys.cpu>80?'red':sys.cpu>60?'yellow':'green'}"></span> CPU ${sys.cpu}%` : '';
+    const mem = sys.memory ? `<span class="sys-dot ${sys.memory.percent>80?'red':sys.memory.percent>60?'yellow':'green'}"></span> RAM ${sys.memory.used}/${sys.memory.total}G` : '';
+    const disk = sys.disk ? `<span class="sys-dot ${sys.disk.percent>80?'red':sys.disk.percent>60?'yellow':'green'}"></span> Disk ${sys.disk.percent}%` : '';
+    const up = sys.uptime ? `&#x23f1; ${sys.uptime.days}d ${sys.uptime.hours}h` : '';
+    const allUp = svc.every(s => s.status === 'up');
+    const svcDot = allUp ? 'green' : 'red';
+    const svcText = allUp ? `${svc.length}/${svc.length} up` : `${svc.filter(s=>s.status==='up').length}/${svc.length} up`;
+    $('sysBar').innerHTML = `
+      ${cpu ? `<div class="sys-item">${cpu}</div>` : ''}
+      ${mem ? `<div class="sys-item">${mem}</div>` : ''}
+      ${disk ? `<div class="sys-item">${disk}</div>` : ''}
+      ${up ? `<div class="sys-item">${up}</div>` : ''}
+      <div class="sys-item"><span class="sys-dot ${svcDot}"></span>Services: ${svcText}</div>
+    `;
+  } catch(e) { $('sysBar').innerHTML = '<span style="color:#ef4444">Failed to load system data</span>'; }
+}
+
+async function loadStats() {
+  try {
+    const s = await fetchJSON('/api/stats');
+    $('sTrades').textContent = fmtNum(s.total_trades);
+    $('sTradesSub').textContent = `${s.closed_trades} closed / ${s.open_trades} open`;
+    if (s.closed_trades > 0) {
+      $('sWinRate').textContent = s.win_rate + '%';
+      $('sWinRateSub').textContent = `${s.wins}w / ${s.losses}l`;
+      const pl = s.total_pl;
+      $('sPL').textContent = fmtDollar(Math.abs(pl));
+      $('sPL').style.color = pl >= 0 ? '#22c55e' : '#ef4444';
+      $('sPLSub').textContent = pl >= 0 ? 'Profit' : 'Loss';
+    } else {
+      $('sWinRate').textContent = 'N/A';
+      $('sWinRateSub').textContent = 'no closed trades';
+      $('sPL').textContent = 'N/A'; $('sPL').style.color = '#667';
+      $('sPLSub').textContent = 'no closed trades';
+    }
+    $('sBotStatus').textContent = s.closed_trades > 0 ? '\u{1f7e2} Active' : '\u{1f7e1} Waiting';
+    $('sBotSub').textContent = s.last_trade_time ? `Last: ${new Date(s.last_trade_time).toLocaleString()}` : '';
+  } catch(e) { console.error('Stats error:', e); }
+}
+
+async function loadCharts() {
+  try {
+    const [cum, symbols, winRates] = await Promise.all([
+      fetchJSON('/api/cumulative-profit'),
+      fetchJSON('/api/trades-by-symbol'),
+      fetchJSON('/api/win-rate-by-symbol'),
+    ]);
+    if (cum.length > 0) {
+      newChart('chartCumProfit', {
+        type: 'line',
+        data: {
+          labels: cum.map(d => d.time),
+          datasets: [
+            { label: 'Cumulative P&L', data: cum.map(d => d.cumulative), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', fill: true, tension: 0.3, pointRadius: 1 },
+            { label: 'Hourly P&L', data: cum.map(d => d.profit), borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderWidth: 1, borderDash: [4,4] },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          scales: {
+            x: { type: 'time', time: { tooltipFormat: 'MMM d HH:mm', displayFormats: { hour: 'MMM d HH' } }, ticks: { color: '#667', maxTicksLimit: 8 }, grid: { color: '#1d2533' } },
+            y: { ticks: { color: '#667', callback: v => '$' + v }, grid: { color: '#1d2533' } },
+          },
+          plugins: { legend: { labels: { color: '#8899aa', boxWidth: 12, padding: 8 } } }
+        }
+      });
+    }
+    newChart('chartSymbolPie', {
+      type: 'pie',
+      data: { labels: symbols.map(d => d.symbol), datasets: [{ data: symbols.map(d => d.count), backgroundColor: ['#22c55e','#3b82f6','#f59e0b','#ef4444'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'right', labels: { color: '#c0d0e0', padding: 8 } } } }
+    });
+    newChart('chartWinRate', {
+      type: 'bar',
+      data: {
+        labels: winRates.map(d => d.symbol),
+        datasets: [{
+          label: 'Win Rate %',
+          data: winRates.map(d => d.closed > 0 ? d.win_rate : null),
+          backgroundColor: winRates.map(d => d.win_rate >= 50 ? '#22c55e' : '#ef4444'),
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: { y: { beginAtZero: true, max: 100, ticks: { color: '#667' }, grid: { color: '#1d2533' } }, x: { ticks: { color: '#c0d0e0' } } },
+        plugins: { legend: { display: false } }
+      }
+    });
+  } catch(e) { console.error('Charts error:', e); }
+}
+
+async function loadTrades() {
+  try {
+    const symbol = $('symbolFilter').value;
+    const url = symbol ? `/api/recent-trades?symbol=${symbol}&limit=20` : '/api/recent-trades?limit=20';
+    const data = await fetchJSON(url);
+    const tbody = $('tradesBody');
+    tbody.innerHTML = data.map(t => `
+      <tr>
+        <td>${new Date(t.time).toLocaleString()}</td>
+        <td><b>${t.symbol}</b></td>
+        <td><span class="badge ${t.type === 'BUY' ? 'badge-buy' : 'badge-sell'}">${t.type}</span></td>
+        <td class="${t.profit != null ? (t.profit >= 0 ? 'profit-pos' : 'profit-neg') : ''}">${t.profit != null ? (t.profit >= 0 ? '+' : '') + fmtDollar(Math.abs(t.profit)) : '—'}</td>
+        <td>${t.score ?? '—'}</td>
+        <td>${t.comment || ''}</td>
+      </tr>
+    `).join('');
+  } catch(e) { console.error('Trades error:', e); }
+}
+
+async function fetchJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function updateTime() {
+  $('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+}
+
+loadSysBar();
+loadStats();
+loadCharts();
+loadTrades();
+updateTime();
+setInterval(() => { loadSysBar(); loadStats(); updateTime(); }, 30000);
+</script>
+{% endblock %}

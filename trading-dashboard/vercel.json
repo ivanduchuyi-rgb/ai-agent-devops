@@ -1,0 +1,110 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/out",
+  "installCommand": "cd frontend && npm install",
+  "devCommand": "cd frontend && npm run dev",
+  "functions": {
+    "api/**/*.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/stats",
+      "destination": "/api/stats"
+    },
+    {
+      "source": "/api/trades-by-symbol",
+      "destination": "/api/trades-by-symbol"
+    },
+    {
+      "source": "/api/win-rate-by-symbol",
+      "destination": "/api/win-rate-by-symbol"
+    },
+    {
+      "source": "/api/profit-over-time",
+      "destination": "/api/profit-over-time"
+    },
+    {
+      "source": "/api/cumulative-profit",
+      "destination": "/api/cumulative-profit"
+    },
+    {
+      "source": "/api/score-distribution",
+      "destination": "/api/score-distribution"
+    },
+    {
+      "source": "/api/profit-by-hour",
+      "destination": "/api/profit-by-hour"
+    },
+    {
+      "source": "/api/recent-trades",
+      "destination": "/api/recent-trades"
+    },
+    {
+      "source": "/api/csv",
+      "destination": "/api/csv"
+    },
+    {
+      "source": "/api/system",
+      "destination": "/api/system"
+    },
+    {
+      "source": "/api/system/history",
+      "destination": "/api/system/history"
+    },
+    {
+      "source": "/api/services",
+      "destination": "/api/services"
+    },
+    {
+      "source": "/api/uploads",
+      "destination": "/api/uploads"
+    },
+    {
+      "source": "/api/uploads/new",
+      "destination": "/api/uploads/new"
+    },
+    {
+      "source": "/api/uploads/(.*)",
+      "destination": "/api/upload-delete"
+    },
+    {
+      "source": "/api/upload",
+      "destination": "/api/upload"
+    },
+    {
+      "source": "/api/upload/confirm",
+      "destination": "/api/upload/confirm"
+    },
+    {
+      "source": "/uploads/(.*)",
+      "destination": "/api/serve-upload"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, X-Key" },
+        { "key": "Access-Control-Max-Age", "value": "86400" }
+      ]
+    },
+    {
+      "source": "/uploads/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300" }
+      ]
+    }
+  ],
+  "crons": []
+}

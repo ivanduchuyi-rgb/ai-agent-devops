@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% set active = "trading" %}
+{% block title %}Trading Analytics - Trading Bot v4.0{% endblock %}
+{% block head %}
+<style>
+.time-bar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+.time-bar .label { color: #8899aa; font-size: 12px; margin-right: 8px; }
+.time-btn {
+  padding: 6px 14px; border-radius: 6px; border: 1px solid #2a3344; background: #141a23;
+  color: #8899aa; font-size: 12px; cursor: pointer; transition: all 0.2s;
+}
+.time-btn:hover, .time-btn.active { border-color: #00d2ff; color: #00d2ff; background: #0d1a2a; }
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.chart-card { background: #141a23; border-radius: 10px; padding: 14px; border: 1px solid #2a3344; }
+.chart-card .chart-title { font-size: 13px; font-weight: 500; color: #c0d0e0; margin-bottom: 10px; }
+.chart-card.full { grid-column: 1 / -1; }
+.chart-wrap { position: relative; min-height: 220px; }
+.perf-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+.perf-table th { text-align: left; padding: 8px 12px; border-bottom: 1px solid #2a3344; color: #8899aa; font-weight: 500; font-size: 11px; text-transform: uppercase; }
+.perf-table td { padding: 8px 12px; border-bottom: 1px solid #1d2533; }
+.perf-table tr:hover td { background: #1a2233; }
+@media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="time-bar">
+  <span class="label">Time Range:</span>
+  <button class="time-btn active" onclick="setRange('24h')">24h</button>
+  <button class="time-btn" onclick="setRange('7d')">7d</button>
+  <button class="time-btn" onclick="setRange('30d')">30d</button>
+  <button class="time-btn" onclick="setRange('all')">All</button>
+</div>
+
+<div class="charts-grid">
+  <div class="chart-card full"><div class="chart-title">Cumulative P&L</div><div class="chart-wrap"><canvas id="chartPL"></canvas></div></div>
+  <div class="chart-card"><div class="chart-title">Trades by Symbol</div><div class="chart-wrap"><canvas id="chartSymbol"></canvas></div></div>
+  <div class="chart-card"><div class="chart-title">Win Rate by Symbol</div><div class="chart-wrap"><canvas id="chartWR"></canvas></div></div>
+  <div class="chart-card"><div class="chart-title">Score Distribution</div><div class="chart-wrap"><canvas id="chartScore"></canvas></div></div>
+  <div class="chart-card"><div class="chart-title">P&amp;L by Hour</div><div class="chart-wrap"><canvas id="chartHour"></canvas></div></div>
+</div>
+
+<div class="chart-card" style="margin-bottom:12px">
+  <div class="chart-title">Performance by Symbol</div>
+  <div style="overflow-x:auto">
+    <table class="perf-table" id="perfTable">
+      <thead><tr><th>Symbol</th><th>Trades</th><th>Closed</th><th>Wins</th><th>Losses</th><th>Win Rate</th><th>Total P&L</th></tr></thead>
+      <tbody id="perfBody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let charts = {};
+function $(id) {return document.getElementById(id);}
+function newChart(id, config) { if(charts[id]) charts[id].destroy(); charts[id] = new Chart($(id).getContext('2d'), config); }
+
+async function loadAll() {
+  try {
+    const [cum, symbols, winRates, scores, hours] = await Promise.all([
+      fetchJSON('/api/cumulative-profit'),
+      fetchJSON('/api/trades-by-symbol'),
+      fetchJSON('/api/win-rate-by-symbol'),
+      fetchJSON('/api/score-distribution'),
+      fetchJSON('/api/profit-by-hour'),
+    ]);
+    renderPL(cum);
+    renderSymbol(symbols);
+    renderWR(winRates);
+    renderScore(scores);
+    renderHour(hours);
+    renderPerf(winRates);
+  } catch(e) { console.error(e); }
+}
+
+function renderPL(data) {
+  newChart('chartPL', {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.time),
+      datasets: [
+        { label: 'Cumulative', data: data.map(d => d.cumulative), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', fill: true, tension: 0.3, pointRadius: 1 },
+        { label: 'Hourly', data: data.map(d => d.profit), borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderWidth: 1, borderDash: [3,3] },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      scales: {
+        x: { type: 'time', time: { tooltipFormat: 'MMM d HH:mm', displayFormats: { hour: 'MMM d HH' } }, ticks: { color: '#667', maxTicksLimit: 10 }, grid: { color: '#1d2533' } },
+        y: { ticks: { color: '#667', callback: v => '$' + v }, grid: { color: '#1d2533' } },
+      },
+      plugins: { legend: { labels: { color: '#8899aa', boxWidth: 12, padding: 8 } } }
+    }
+  });
+}
+
+function renderSymbol(data) {
+  newChart('chartSymbol', {
+    type: 'doughnut',
+    data: { labels: data.map(d => d.symbol), datasets: [{ data: data.map(d => d.count), backgroundColor: ['#22c55e','#3b82f6','#f59e0b','#ef4444'], borderWidth: 0 }] },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#c0d0e0', padding: 12 } } } }
+  });
+}
+
+function renderWR(data) {
+  newChart('chartWR', {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.symbol),
+      datasets: [{
+        label: 'Win Rate',
+        data: data.map(d => d.closed > 0 ? d.win_rate : null),
+        backgroundColor: data.map(d => d.win_rate >= 50 ? '#22c55e' : '#ef4444'),
+        borderRadius: 4,
+      }]
+    },
+    options: { responsive: true, scales: { y: { beginAtZero: true, max: 100, ticks: { color: '#667' }, grid: { color: '#1d2533' } }, x: { ticks: { color: '#c0d0e0' } } }, plugins: { legend: { display: false } } }
+  });
+}
+
+function renderScore(data) {
+  newChart('chartScore', {
+    type: 'bar',
+    data: {
+      labels: data.map(d => (d.bucket) + '-' + (d.bucket + 9)),
+      datasets: [{ label: 'Trades', data: data.map(d => d.count), backgroundColor: '#3b82f6', borderRadius: 4 }]
+    },
+    options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { color: '#667' }, grid: { color: '#1d2533' } }, x: { ticks: { color: '#c0d0e0' } } }, plugins: { legend: { display: false } } }
+  });
+}
+
+function renderHour(data) {
+  newChart('chartHour', {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.hour + ':00'),
+      datasets: [{ label: 'P&L', data: data.map(d => d.profit), backgroundColor: data.map(d => d.profit >= 0 ? '#22c55e' : '#ef4444'), borderRadius: 3 }]
+    },
+    options: { responsive: true, scales: { y: { ticks: { color: '#667', callback: v => '$' + v }, grid: { color: '#1d2533' } }, x: { ticks: { color: '#c0d0e0' } } }, plugins: { legend: { display: false } } }
+  });
+}
+
+function renderPerf(data) {
+  $('perfBody').innerHTML = data.map(d => `
+    <tr>
+      <td><b>${d.symbol}</b></td>
+      <td>${d.total}</td>
+      <td>${d.closed}</td>
+      <td>${d.total > 0 ? '/' : '—'}</td>
+      <td>${d.total > 0 ? '/' : '—'}</td>
+      <td class="${d.win_rate >= 50 ? 'profit-pos' : 'profit-neg'}">${d.closed > 0 ? d.win_rate + '%' : 'N/A'}</td>
+      <td class="${d.total_pl >= 0 ? 'profit-pos' : 'profit-neg'}">${fmtDollar(Math.abs(d.total_pl))}</td>
+    </tr>
+  `).join('');
+}
+
+function setRange(r) {
+  document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+async function fetchJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+
+loadAll();
+setInterval(loadAll, 60000);
+</script>
+{% endblock %}

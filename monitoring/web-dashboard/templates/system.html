@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% set active = "system" %}
+{% block title %}System Monitor - VPS Status{% endblock %}
+{% block head %}
+<style>
+.sys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.gauge-card { background: #141a23; border-radius: 10px; padding: 16px; border: 1px solid #2a3344; }
+.gauge-card .g-title { font-size: 12px; color: #8899aa; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.gauge-card .g-value { font-size: 28px; font-weight: 700; }
+.gauge-bar { height: 6px; border-radius: 3px; background: #1d2533; margin-top: 8px; overflow: hidden; }
+.gauge-bar .fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+.svc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.svc-table th { text-align: left; padding: 8px 12px; border-bottom: 1px solid #2a3344; color: #8899aa; font-weight: 500; font-size: 11px; text-transform: uppercase; }
+.svc-table td { padding: 8px 12px; border-bottom: 1px solid #1d2533; }
+.svc-table tr:hover td { background: #1a2233; }
+.status-up { color: #22c55e; font-weight: 600; }
+.status-down { color: #ef4444; font-weight: 600; }
+.load-grid { display: flex; gap: 16px; margin-top: 8px; }
+.load-item { text-align: center; }
+.load-item .val { font-size: 18px; font-weight: 600; }
+.load-item .lbl { font-size: 10px; color: #667; text-transform: uppercase; }
+.net-grid { display: flex; gap: 24px; margin-top: 8px; }
+.net-item { text-align: center; }
+.net-item .val { font-size: 16px; font-weight: 600; }
+.net-item .lbl { font-size: 10px; color: #667; }
+@media (max-width: 768px) { .sys-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="sys-grid">
+  <div class="gauge-card">
+    <div class="g-title"><span>CPU Usage</span><span id="cpuLabel">—</span></div>
+    <div class="g-value" id="cpuValue">—</div>
+    <div class="gauge-bar"><div class="fill" id="cpuBar" style="width:0%"></div></div>
+    <div class="load-grid" id="loadGrid"></div>
+  </div>
+  <div class="gauge-card">
+    <div class="g-title"><span>Memory</span><span id="memLabel">—</span></div>
+    <div class="g-value" id="memValue">—</div>
+    <div class="gauge-bar"><div class="fill" id="memBar" style="width:0%"></div></div>
+    <div style="display:flex; gap:16px; margin-top:8px; font-size:12px; color:#667" id="memDetails"></div>
+  </div>
+  <div class="gauge-card">
+    <div class="g-title"><span>Disk (/)</span><span id="diskLabel">—</span></div>
+    <div class="g-value" id="diskValue">—</div>
+    <div class="gauge-bar"><div class="fill" id="diskBar" style="width:0%"></div></div>
+    <div style="margin-top:6px; font-size:12px; color:#667" id="diskDetails"></div>
+  </div>
+  <div class="gauge-card">
+    <div class="g-title"><span>Network</span></div>
+    <div class="net-grid" id="netGrid">
+      <div class="net-item"><div class="val" id="netRX">—</div><div class="lbl">&#x25bc; RX</div></div>
+      <div class="net-item"><div class="val" id="netTX">—</div><div class="lbl">&#x25b2; TX</div></div>
+    </div>
+    <div style="margin-top:6px; font-size:12px; color:#667" id="netIfaces"></div>
+  </div>
+</div>
+<div class="gauge-card" style="margin-bottom:12px">
+  <div class="g-title">Services Status</div>
+  <div style="overflow-x:auto; margin-top:8px">
+    <table class="svc-table" id="svcTable">
+      <thead><tr><th>Service</th><th>Status</th><th>Response</th></tr></thead>
+      <tbody id="svcBody"></tbody>
+    </table>
+  </div>
+</div>
+<div class="gauge-card">
+  <div class="g-title"><span>System Info</span><span id="sysInfoLabel"></span></div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:8px; font-size:13px; color:#8899aa" id="sysInfo"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function $(id) { return document.getElementById(id); }
+
+function barColor(p) { return p > 80 ? '#ef4444' : p > 60 ? '#f59e0b' : '#22c55e'; }
+
+async function loadSystem() {
+  try {
+    const [sys, svc] = await Promise.all([fetchJSON('/api/system'), fetchJSON('/api/services')]);
+
+    if (sys.cpu != null) {
+      $('cpuValue').textContent = sys.cpu + '%';
+      $('cpuLabel').textContent = sys.cpu + '%';
+      $('cpuBar').style.width = sys.cpu + '%';
+      $('cpuBar').style.background = barColor(sys.cpu);
+    }
+    if (sys.load) {
+      $('loadGrid').innerHTML = `
+        <div class="load-item"><div class="val">${sys.load['1m']}</div><div class="lbl">1 min</div></div>
+        <div class="load-item"><div class="val">${sys.load['5m']}</div><div class="lbl">5 min</div></div>
+        <div class="load-item"><div class="val">${sys.load['15m']}</div><div class="lbl">15 min</div></div>
+      `;
+    }
+    if (sys.memory) {
+      const m = sys.memory;
+      $('memValue').textContent = m.used + 'G / ' + m.total + 'G';
+      $('memLabel').textContent = m.percent + '%';
+      $('memBar').style.width = m.percent + '%';
+      $('memBar').style.background = barColor(m.percent);
+      $('memDetails').innerHTML = `<span>Available: ${m.available}G</span><span>Free: ${m.free}G</span>`;
+    }
+    if (sys.disk) {
+      const d = sys.disk;
+      $('diskValue').textContent = d.used + 'G / ' + d.total + 'G';
+      $('diskLabel').textContent = d.percent + '%';
+      $('diskBar').style.width = d.percent + '%';
+      $('diskBar').style.background = barColor(d.percent);
+      $('diskDetails').innerHTML = `Free: ${d.free}G`;
+      if (sys.disk_data) {
+        $('diskDetails').innerHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;/data: ${sys.disk_data.used}G / ${sys.disk_data.total}G (${sys.disk_data.percent}%)`;
+      }
+    }
+    if (sys.network) {
+      const n = sys.network;
+      $('netRX').textContent = n.rx_kbps ? n.rx_kbps.toFixed(1) + ' KB/s' : '—';
+      $('netTX').textContent = n.tx_kbps ? n.tx_kbps.toFixed(1) + ' KB/s' : '—';
+    }
+    if (sys.processes != null) {
+      $('netIfaces').textContent = `Processes: ${sys.processes}`;
+    }
+    if (sys.uptime) {
+      $('sysInfoLabel').textContent = `Uptime: ${sys.uptime.days}d ${sys.uptime.hours}h`;
+    }
+    if (sys.cpu != null && sys.load && sys.memory) {
+      const cores = Math.round(sys.load['1m'] / (sys.cpu / 100) || 1);
+      $('sysInfo').innerHTML = `
+        <span>CPU Cores: ~${cores || '?'}</span>
+        <span>Uptime: ${sys.uptime.days}d ${sys.uptime.hours}h</span>
+        ${sys.processes ? `<span>Processes: ${sys.processes}</span>` : ''}
+      `;
+    }
+
+    renderServices(svc);
+  } catch(e) { console.error('System load error:', e); }
+}
+
+function renderServices(data) {
+  $('svcBody').innerHTML = data.map(s => `
+    <tr>
+      <td><b>${s.name}</b></td>
+      <td class="${s.status === 'up' ? 'status-up' : 'status-down'}">${s.status === 'up' ? '\u{1f7e2} Up' : '\u{1f534} Down'}</td>
+      <td>${s.code ? 'HTTP ' + s.code : s.error ? s.error.substring(0,40) : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+async function fetchJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+
+loadSystem();
+setInterval(loadSystem, 10000);
+</script>
+{% endblock %}
