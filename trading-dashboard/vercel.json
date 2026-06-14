@@ -3,11 +3,6 @@
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/out",
   "installCommand": "cd frontend && npm install",
-  "functions": {
-    "api/**/*.py": {
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     { "source": "/api/stats", "destination": "/api/stats" },
     { "source": "/api/trades-by-symbol", "destination": "/api/trades-by-symbol" },
