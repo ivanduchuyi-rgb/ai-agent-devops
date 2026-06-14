@@ -4,10 +4,9 @@
   "private": true,
   "scripts": {
     "build": "cd frontend && npm run build",
-    "dev": "cd frontend && npm run dev",
-    "install:all": "cd frontend && npm install"
+    "dev": "cd frontend && npm run dev"
   },
   "dependencies": {
-    "next": "*"
+    "next": "14.2.0"
   }
 }

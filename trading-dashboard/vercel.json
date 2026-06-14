@@ -1,9 +1,9 @@
 {
   "version": 2,
   "framework": "nextjs",
+  "installCommand": "npm install && cd frontend && npm install",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/out",
-  "installCommand": "cd frontend && npm install",
   "rewrites": [
     { "source": "/api/stats", "destination": "/api/stats" },
     { "source": "/api/trades-by-symbol", "destination": "/api/trades-by-symbol" },
