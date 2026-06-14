@@ -1,12 +1,10 @@
 {
   "version": 2,
-  "framework": "nextjs",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/out",
   "installCommand": "cd frontend && npm install",
   "functions": {
     "api/**/*.py": {
-      "runtime": "vercel-python@0.1.0",
       "maxDuration": 30
     }
   },
@@ -21,13 +19,12 @@
     { "source": "/api/recent-trades", "destination": "/api/recent-trades" },
     { "source": "/api/csv", "destination": "/api/csv" },
     { "source": "/api/system", "destination": "/api/system" },
-    { "source": "/api/system/history", "destination": "/api/system/history" },
     { "source": "/api/services", "destination": "/api/services" },
     { "source": "/api/uploads", "destination": "/api/uploads" },
     { "source": "/api/upload", "destination": "/api/upload" },
     { "source": "/api/upload/confirm", "destination": "/api/upload/confirm" },
     { "source": "/uploads/(.*)", "destination": "/api/serve-upload" },
-    { "source": "/(.*)", "destination": "/$1" }
+    { "source": "/(.*)", "destination": "/" }
   ],
   "headers": [
     {
